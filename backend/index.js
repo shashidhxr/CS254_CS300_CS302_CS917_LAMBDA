@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import functionRoutes from './api/functionRoutes.js';
+import executionRoutes from './models/execution.js';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
   .then(() => console.log('Connected to MongoDB'));
 
 app.use('/api/functions', functionRoutes);
+app.use("/api/executions", executionRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

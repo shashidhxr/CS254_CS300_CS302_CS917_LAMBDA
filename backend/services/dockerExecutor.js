@@ -1,25 +1,51 @@
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { exec } from 'child_process';
+const fs = require("fs/promises");
+const { exec } = require("child_process");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const Execution = require("../models/Execution");
 
-export const executeFunction = ({ code, language, timeout }) => {
-  return new Promise((resolve, reject) => {
-    const tempDir = path.join(process.cwd(), 'backend', 'temp');
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+const runCodeInDocker = async (code, language, timeout) => {
+  const filename = `${uuidv4()}.${language === "python" ? "py" : "js"}`;
+  const filepath = path.join(__dirname, "..", "temp", filename);
 
-    const fileName = `${uuidv4()}.${language === 'python' ? 'py' : 'js'}`;
-    const filePath = path.join(tempDir, fileName);
+  await fs.writeFile(filepath, code);
+  const dockerImage = language === "python" ? "python:3.11" : "node:20";
+  const containerCmd =
+    language === "python"
+      ? `python /app/${filename}`
+      : `node /app/${filename}`;
 
-    fs.writeFileSync(filePath, code);
+  const startTime = Date.now();
 
-    const dockerImage = language === 'python' ? 'python:3.10' : 'node:18';
-    const command = `docker run --rm -v ${filePath}:/usr/src/app/code.${language === 'python' ? 'py' : 'js'} -w /usr/src/app ${dockerImage} ${language === 'python' ? 'python' : 'node'} code.${language === 'python' ? 'py' : 'js'}`;
+  const execCommand = `docker run --rm -v ${filepath}:/app/${filename} ${dockerImage} ${containerCmd}`;
 
-    const child = exec(command, { timeout: timeout * 1000 }, (err, stdout, stderr) => {
-      fs.unlinkSync(filePath); // cleanup
-      if (err) return reject(stderr || err.message);
-      resolve(stdout);
+  return new Promise((resolve) => {
+    const process = exec(execCommand, { timeout: timeout * 1000 }, async (err, stdout, stderr) => {
+      const duration = Date.now() - startTime;
+
+      await fs.unlink(filepath); // cleanup temp file
+
+      // Save execution metrics
+      const result = {
+        output: stdout.trim(),
+        error: stderr.trim(),
+        duration,
+        success: !err,
+        timestamp: new Date()
+      };
+
+      await Execution.create({
+        language,
+        duration,
+        success: !err,
+        output: stdout.trim(),
+        error: stderr.trim(),
+        timestamp: new Date()
+      });
+
+      resolve(result);
     });
   });
 };
+
+module.exports = runCodeInDocker;
