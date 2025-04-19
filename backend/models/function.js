@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const functionSchema = new mongoose.Schema({
   name: String,
@@ -8,5 +8,6 @@ const functionSchema = new mongoose.Schema({
   code: String, // base64 or raw string
 }, { timestamps: true });
 
-module.exports = mongoose.model('Function', functionSchema);
+const FunctionModel = mongoose.model('Function', functionSchema);
 
+export default FunctionModel
