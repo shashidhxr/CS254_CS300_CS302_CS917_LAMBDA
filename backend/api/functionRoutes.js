@@ -1,6 +1,6 @@
 import express from 'express';
 import FunctionModel from '../models/function.js';
-import { executeFunction } from '../services/dockerExecutor.js';
+import executeFunction from '../services/dockerExecutor.js'
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 📄 Read All Functions
+// Read All Functions
 router.get('/', async (req, res) => {
   try {
     const functions = await FunctionModel.find();
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 🔍 Get Function by ID
+// Get Function by ID
 router.get('/:id', async (req, res) => {
   try {
     const func = await FunctionModel.findById(req.params.id);
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ✏️ Update Function
+// Update Function
 router.put('/:id', async (req, res) => {
   try {
     const updated = await FunctionModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -58,7 +58,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// ❌ Delete Function
+// Delete Function
 router.delete('/:id', async (req, res) => {
   try {
     await FunctionModel.findByIdAndDelete(req.params.id);

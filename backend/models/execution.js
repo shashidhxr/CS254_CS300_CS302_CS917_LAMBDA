@@ -1,4 +1,5 @@
-const mongoose = require("mongoose");
+// const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const executionSchema = new mongoose.Schema({
   language: String,
@@ -9,4 +10,5 @@ const executionSchema = new mongoose.Schema({
   timestamp: Date,
 });
 
-module.exports = mongoose.model("Execution", executionSchema);
+// module.exports = mongoose.model("Execution", executionSchema);
+export default mongoose.model('Execution', executionSchema)

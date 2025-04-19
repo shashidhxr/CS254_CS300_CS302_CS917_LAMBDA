@@ -1,51 +1,86 @@
-const fs = require("fs/promises");
-const { exec } = require("child_process");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const Execution = require("../models/Execution");
+// backend/services/dockerExecutor.js
+import fs from 'fs/promises';
+import { exec } from 'child_process';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import Execution from '../models/execution.js';
+import { fileURLToPath } from 'url';
 
-const runCodeInDocker = async (code, language, timeout) => {
-  const filename = `${uuidv4()}.${language === "python" ? "py" : "js"}`;
-  const filepath = path.join(__dirname, "..", "temp", filename);
+// ESM __dirname shim
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+/**
+ * Executes user code inside a Docker container, enforces timeout,
+ * cleans up temp files, and records execution metrics.
+ *
+ * @param {string} code - The source code to run.
+ * @param {string} language - 'python' or 'javascript'.
+ * @param {number} timeout - Max execution time in seconds.
+ * @returns {Promise<{output:string,error:string,duration:number,success:boolean,timestamp:Date}>}
+ */
+export default async function executeFunction({ code, language, timeout = 5}) {
+  // 1. Write code to a temp file
+  const ext = language === 'python' ? 'py' : 'js';
+  const filename = `${uuidv4()}.${ext}`;
+  const tempDir = path.join(__dirname, '..', 'temp');
+  const filepath = path.join(tempDir, filename);
+
+  await fs.mkdir(tempDir, { recursive: true });
   await fs.writeFile(filepath, code);
-  const dockerImage = language === "python" ? "python:3.11" : "node:20";
-  const containerCmd =
-    language === "python"
-      ? `python /app/${filename}`
-      : `node /app/${filename}`;
 
-  const startTime = Date.now();
+  // 2. Build Docker command
+  const dockerImage = language === 'python' ? 'python:3.11' : 'node:20';
+  const containerCmd = language === 'python'
+    ? `python /app/${filename}`
+    : `node /app/${filename}`;
+  const dockerCmd = [
+    'docker run --rm',
+    `-v ${filepath}:/app/${filename}`,
+    dockerImage,
+    containerCmd
+  ].join(' ');
 
-  const execCommand = `docker run --rm -v ${filepath}:/app/${filename} ${dockerImage} ${containerCmd}`;
+  // 3. Execute with timeout and measure duration
+  const start = Date.now();
+  const result = await new Promise((resolve) => {
+    exec(dockerCmd, { timeout: timeout * 1000 }, async (err, stdout, stderr) => {
+      if (err?.killed) {
+        return reject(new Error(`Timeout after ${timeout} seconds`));
+      }
+      
+      const duration = Date.now() - start;
+      // Cleanup file
+      await fs.unlink(filepath).catch(() => {});
 
-  return new Promise((resolve) => {
-    const process = exec(execCommand, { timeout: timeout * 1000 }, async (err, stdout, stderr) => {
-      const duration = Date.now() - startTime;
+      if (stderr?.includes("Unable to find image")) {
+        return resolve({
+          output: "",
+          error: "Docker image not found. Pull it first with: 'docker pull python:3.11'",
+          duration,
+          success: false,
+          timestamp: new Date()
+        });
+      }
+      
+      // Prepare metrics
+      const output  = stdout?.trim() || '';
+      const error   = stderr?.trim() || '';
+      const success = !err;
 
-      await fs.unlink(filepath); // cleanup temp file
-
-      // Save execution metrics
-      const result = {
-        output: stdout.trim(),
-        error: stderr.trim(),
-        duration,
-        success: !err,
-        timestamp: new Date()
-      };
-
+      // Save to MongoDB
       await Execution.create({
         language,
         duration,
-        success: !err,
-        output: stdout.trim(),
-        error: stderr.trim(),
+        success,
+        output,
+        error,
         timestamp: new Date()
       });
 
-      resolve(result);
+      resolve({ output, error, duration, success, timestamp: new Date() });
     });
   });
-};
 
-module.exports = runCodeInDocker;
+  return result;
+}
