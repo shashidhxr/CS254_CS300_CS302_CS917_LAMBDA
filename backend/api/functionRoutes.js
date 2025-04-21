@@ -38,34 +38,34 @@ router.get('/', async (req, res) => {
 });
 
 // Get Function by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const func = await FunctionModel.findById(req.params.id);
-    if (!func) return res.status(404).json({ error: 'Not found' });
-    res.json(func);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// router.get('/:id', async (req, res) => {
+//   try {
+//     const func = await FunctionModel.findById(req.params.id);
+//     if (!func) return res.status(404).json({ error: 'Not found' });
+//     res.json(func);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
-// Update Function
-router.put('/:id', async (req, res) => {
-  try {
-    const updated = await FunctionModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+// // Update Function
+// router.put('/:id', async (req, res) => {
+//   try {
+//     const updated = await FunctionModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+//     res.json(updated);
+//   } catch (err) {
+//     res.status(400).json({ error: err.message });
+//   }
+// });
 
-// Delete Function
-router.delete('/:id', async (req, res) => {
-  try {
-    await FunctionModel.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// // Delete Function
+// router.delete('/:id', async (req, res) => {
+//   try {
+//     await FunctionModel.findByIdAndDelete(req.params.id);
+//     res.json({ message: 'Deleted' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 export default router;
